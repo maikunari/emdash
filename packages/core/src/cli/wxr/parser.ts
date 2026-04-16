@@ -217,7 +217,7 @@ function getAttr(node: XmlNode, attrName: string): string {
 	return "";
 }
 
-/** Parse a numeric string, returning undefined for NaN/0/missing */
+/** Parse a numeric string, returning undefined for missing or invalid values. */
 function parseIntSafe(val: string | undefined): number | undefined {
 	if (!val) return undefined;
 	const n = parseInt(val, 10);
@@ -392,7 +392,7 @@ function parseWxrItem(item: Record<string, unknown>): WxrPost | null {
 
 	post.title = getText(item["title"]) || undefined;
 	post.link = getText(item["link"]) || undefined;
-	post.pubDate = getText(item["pubdate"]) || undefined;
+	post.pubDate = getText(item["pubDate"]) || getText(item["pubdate"]) || undefined;
 	post.creator = getText(item["dc:creator"]) || undefined;
 	post.guid = getText(item["guid"]) || undefined;
 	post.description = getText(item["description"]) || undefined;
@@ -461,24 +461,34 @@ function parseWxrItem(item: Record<string, unknown>): WxrPost | null {
  * since fast-xml-parser is pure ESM with no Node.js-specific globals.
  */
 export function parseWxrString(xml: string): Promise<WxrData> {
-	const parser = createWxrParser();
-	const parsed = parser.parse(xml) as Record<string, unknown>;
-	return Promise.resolve(extractWxrData(parsed));
+	try {
+		const parser = createWxrParser();
+		const parsed = parser.parse(xml) as Record<string, unknown>;
+		return Promise.resolve(extractWxrData(parsed));
+	} catch (err) {
+		return Promise.reject(
+			new Error(`XML parsing error: ${err instanceof Error ? err.message : String(err)}`),
+		);
+	}
 }
 
 /**
  * Parse a WordPress WXR export file from a Node.js Readable stream.
  *
  * Reads the entire stream into memory, then parses with fast-xml-parser.
- * This is compatible with all environments; for very large files (>100MB),
- * consider using parseWxrString() with chunked reading instead.
+ * Note: parseWxrString() also holds the full document in memory — reducing
+ * peak memory for very large files (>100MB) would require a true streaming
+ * parser, which is not currently implemented.
  */
 export function parseWxr(stream: Readable): Promise<WxrData> {
 	return new Promise((resolve, reject) => {
 		const chunks: Buffer[] = [];
 
-		stream.on("data", (chunk: Buffer) => {
-			chunks.push(chunk);
+		stream.on("data", (chunk: Buffer | string) => {
+			// Streams created with { encoding: "utf-8" } emit strings;
+			// default (binary) streams emit Buffers. Normalize to Buffer
+			// so Buffer.concat works regardless of caller configuration.
+			chunks.push(typeof chunk === "string" ? Buffer.from(chunk, "utf-8") : chunk);
 		});
 
 		stream.on("error", (err) => {

@@ -8,7 +8,7 @@
 
 import { describe, it, expect } from "vitest";
 
-import { parseWxrString, type WxrData } from "../../../src/cli/wxr/parser.js";
+import { parseWxrString } from "../../../src/cli/wxr/parser.js";
 
 /** Minimal valid WXR document */
 const MINIMAL_WXR = `<?xml version="1.0" encoding="UTF-8"?>
@@ -28,6 +28,7 @@ const SINGLE_POST_WXR = `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0"
 	xmlns:content="http://purl.org/rss/1.0/modules/content/"
 	xmlns:dc="http://purl.org/dc/elements/1.1/"
+	xmlns:excerpt="http://wordpress.org/export/1.2/excerpt/"
 	xmlns:wp="http://wordpress.org/export/1.2/"
 >
 <channel>
@@ -181,6 +182,7 @@ describe("WXR Parser (fast-xml-parser)", () => {
 			expect(post.postType).toBe("post");
 			expect(post.content).toContain("wp:paragraph");
 			expect(post.excerpt).toBe("Welcome!");
+			expect(post.pubDate).toBeDefined();
 			expect(post.postDate).toBe("2025-01-15 10:00:00");
 			expect(post.postDateGmt).toBe("2025-01-15 10:00:00");
 			expect(post.isSticky).toBe(false);
