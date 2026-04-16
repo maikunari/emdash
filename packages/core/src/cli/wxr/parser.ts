@@ -202,11 +202,14 @@ function getText(node: unknown): string {
 	// fast-xml-parser may put text content in "#text" when attributes are present
 	if (typeof node === "object") {
 		const obj = node as Record<string, unknown>;
-		if ("#text" in obj) return String(obj["#text"]);
-		// If the node is an object without #text, it might be an empty element
+		const text = obj["#text"];
+		if (typeof text === "string") return text;
+		if (typeof text === "number") return String(text);
+		// If the node is an object without a stringifiable #text, treat as empty
 		return "";
 	}
-	return String(node);
+	// Unexpected types (boolean, bigint, symbol, function) — no useful text
+	return "";
 }
 
 /** Get an attribute value from a parsed XML node */
